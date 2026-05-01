@@ -1,0 +1,84 @@
+package com.rainbowforest.orderservice.controller;
+
+import com.rainbowforest.orderservice.http.header.HeaderGenerator;
+import com.rainbowforest.orderservice.service.CartService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+// Sửa javax thành jakarta
+import jakarta.servlet.http.HttpServletRequest; 
+
+@RestController
+public class CartController {
+
+    @Autowired
+    private CartService cartService; // Thêm private cho đúng chuẩn encapsulation
+    
+    @Autowired
+    private HeaderGenerator headerGenerator;
+
+    @GetMapping (value = "/cart")
+    public ResponseEntity<List<Object>> getCart(@RequestHeader(value = "cartId") String cartId){
+        List<Object> cart = cartService.getCart(cartId);
+        if(!cart.isEmpty()) {
+            return new ResponseEntity<List<Object>>(
+                    cart,
+                    headerGenerator.getHeadersForSuccessGetMethod(),
+                    HttpStatus.OK);
+        }
+        return new ResponseEntity<List<Object>>(
+                headerGenerator.getHeadersForError(),
+                HttpStatus.NOT_FOUND);  
+    }
+
+    @PostMapping(value = "/cart", params = {"productId", "quantity"})
+    public ResponseEntity<List<Object>> addItemToCart(
+            @RequestParam("productId") Long productId,
+            @RequestParam("quantity") Integer quantity,
+            @RequestHeader(value = "cartId") String cartId,
+            HttpServletRequest request) {
+        List<Object> cart = cartService.getCart(cartId);
+        if(cart != null) {
+            if(cart.isEmpty()){
+                cartService.addItemToCart(cartId, productId, quantity);
+            }else{
+                if(cartService.checkIfItemIsExist(cartId, productId)){
+                    cartService.changeItemQuantity(cartId, productId, quantity);
+                }else {
+                    cartService.addItemToCart(cartId, productId, quantity);
+                }
+            }
+            Long parsedCartId = 0L;
+            try {
+                parsedCartId = Long.parseLong(cartId);
+            } catch (NumberFormatException e) {
+                // Ignore if it's a guest cart id string
+            }
+            return new ResponseEntity<List<Object>>(
+                    cart,
+                    headerGenerator.getHeadersForSuccessPostMethod(request, parsedCartId),
+                    HttpStatus.CREATED);
+        }
+        return new ResponseEntity<List<Object>>(
+                headerGenerator.getHeadersForError(),
+                HttpStatus.BAD_REQUEST);
+    }
+
+    @DeleteMapping(value = "/cart", params = "productId")
+    public ResponseEntity<Void> removeItemFromCart(
+            @RequestParam("productId") Long productId,
+            @RequestHeader(value = "cartId") String cartId){
+        List<Object> cart = cartService.getCart(cartId);
+        if(cart != null) {
+            cartService.deleteItemFromCart(cartId, productId);
+            return new ResponseEntity<Void>(
+                    headerGenerator.getHeadersForSuccessGetMethod(),
+                    HttpStatus.OK);
+        }
+        return new ResponseEntity<Void>(
+                headerGenerator.getHeadersForError(),
+                HttpStatus.NOT_FOUND);
+    }
+}
