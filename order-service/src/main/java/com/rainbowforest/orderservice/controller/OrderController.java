@@ -18,11 +18,16 @@ import java.util.List;
 // Sửa javax thành jakarta
 import jakarta.servlet.http.HttpServletRequest;
 
+import com.rainbowforest.orderservice.feignclient.ProductClient;
+
 @RestController
 public class OrderController {
 
     @Autowired
     private UserClient userClient;
+
+    @Autowired
+    private ProductClient productClient;
 
     @Autowired
     private OrderService orderService;
@@ -50,6 +55,17 @@ public class OrderController {
             try {
                 Order savedOrder = orderService.saveOrder(order);
                 cartService.clearCartItems(itemIds); // Xóa cartId khỏi các Item đã đặt hàng
+
+                // TRỪ TỒN KHO SẢN PHẨM SAU KHI TẠO ĐƠN THÀNH CÔNG
+                for (Item item : cart) {
+                    if (item.getProduct() != null) {
+                        try {
+                            productClient.deductProductStock(item.getProduct().getId(), item.getQuantity());
+                        } catch (Exception e) {
+                            System.err.println("Lỗi khi trừ tồn kho sản phẩm ID: " + item.getProduct().getId());
+                        }
+                    }
+                }
 
                 return new ResponseEntity<Order>(
                         savedOrder,
@@ -96,6 +112,19 @@ public class OrderController {
             @RequestParam("status") String status) {
         Order order = orderService.getOrderById(id);
         if (order != null) {
+            // NẾU HỦY ĐƠN, CỘNG LẠI SỐ LƯỢNG VÀO KHO
+            if (("CANCELED".equals(status) || "CANCELLED".equals(status)) && !order.getStatus().startsWith("CANCEL")) {
+                for (Item item : order.getItems()) {
+                    if (item.getProduct() != null) {
+                        try {
+                            productClient.addProductStock(item.getProduct().getId(), item.getQuantity());
+                        } catch (Exception e) {
+                            System.err.println("Lỗi khi cộng lại tồn kho cho sản phẩm ID: " + item.getProduct().getId());
+                        }
+                    }
+                }
+            }
+
             order.setStatus(status);
             orderService.saveOrder(order);
             return new ResponseEntity<Order>(

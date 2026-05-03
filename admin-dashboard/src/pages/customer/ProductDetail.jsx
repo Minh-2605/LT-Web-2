@@ -94,16 +94,23 @@ const ProductDetail = () => {
 
                     <Divider style={{ margin: '32px 0' }} />
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 40 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 16 }}>
                         <Text strong style={{ fontSize: 18 }}>Số lượng</Text>
                         <InputNumber 
                             min={1} 
-                            max={99} 
+                            max={product.availability > 0 ? product.availability : 1} 
                             value={quantity} 
                             onChange={setQuantity} 
                             size="large"
+                            disabled={product.availability <= 0}
                             style={{ width: 100, borderRadius: 8 }}
                         />
+                    </div>
+                    
+                    <div style={{ marginBottom: 40 }}>
+                        <Text type="secondary" style={{ fontSize: 14 }}>
+                            {product.availability > 0 ? `Sản phẩm có sẵn: ${product.availability}` : <span style={{ color: 'red' }}>Sản phẩm đã hết hàng</span>}
+                        </Text>
                     </div>
 
                     <Button 
@@ -112,10 +119,19 @@ const ProductDetail = () => {
                         icon={<ShoppingCartOutlined style={{ fontSize: 20 }} />} 
                         onClick={handleAddToCart}
                         loading={adding}
+                        disabled={product.availability <= 0}
                         shape="round"
-                        style={{ width: '100%', height: 60, fontSize: 20, fontWeight: 600, background: 'linear-gradient(90deg, #1890ff 0%, #0050b3 100%)', border: 'none', boxShadow: '0 4px 12px rgba(24,144,255,0.4)' }}
+                        style={{ 
+                            width: '100%', 
+                            height: 60, 
+                            fontSize: 20, 
+                            fontWeight: 600, 
+                            background: product.availability > 0 ? 'linear-gradient(90deg, #1890ff 0%, #0050b3 100%)' : '#d9d9d9', 
+                            border: 'none', 
+                            boxShadow: product.availability > 0 ? '0 4px 12px rgba(24,144,255,0.4)' : 'none' 
+                        }}
                     >
-                        Thêm vào giỏ hàng
+                        {product.availability > 0 ? 'Thêm vào giỏ hàng' : 'Tạm hết hàng'}
                     </Button>
                 </Col>
             </Row>

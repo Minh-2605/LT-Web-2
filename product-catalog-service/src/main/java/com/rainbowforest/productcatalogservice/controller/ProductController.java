@@ -67,4 +67,32 @@ public class ProductController {
                 headerGenerator.getHeadersForSuccessGetMethod(),
                 HttpStatus.OK);
     }
+
+    // 5. Trừ số lượng tồn kho
+    @PutMapping("/products/{id}/deduct")
+    public ResponseEntity<Void> deductProductStock(@PathVariable("id") Long id, @RequestParam("quantity") int quantity) {
+        Product product = productService.getProductById(id);
+        if (product != null) {
+            int newAvailability = product.getAvailability() - quantity;
+            if (newAvailability < 0) {
+                newAvailability = 0; // Đảm bảo kho không bị âm
+            }
+            product.setAvailability(newAvailability);
+            productService.addProduct(product); // Hàm save
+            return new ResponseEntity<>(HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+
+    // 6. Cộng lại số lượng tồn kho
+    @PutMapping("/products/{id}/add-stock")
+    public ResponseEntity<Void> addProductStock(@PathVariable("id") Long id, @RequestParam("quantity") int quantity) {
+        Product product = productService.getProductById(id);
+        if (product != null) {
+            product.setAvailability(product.getAvailability() + quantity);
+            productService.addProduct(product);
+            return new ResponseEntity<>(HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
 }

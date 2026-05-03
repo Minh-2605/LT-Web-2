@@ -32,7 +32,7 @@ const ProductModal = ({ open, onCreate, onCancel, initialValues }) => {
                 setPreviewImage(initialValues.image);
             } else {
                 form.resetFields();
-                form.setFieldsValue({ availability: 1 });
+                form.setFieldsValue({ availability: 10 });
                 setPreviewImage(null);
             }
         }
@@ -134,11 +134,12 @@ const ProductModal = ({ open, onCreate, onCancel, initialValues }) => {
                     />
                 </Form.Item>
 
-                <Form.Item name="availability" label="Trạng thái">
-                    <Select>
-                        <Select.Option value={1}>Còn hàng</Select.Option>
-                        <Select.Option value={0}>Hết hàng</Select.Option>
-                    </Select>
+                <Form.Item 
+                    name="availability" 
+                    label="Số lượng tồn kho"
+                    rules={[{ required: true, message: 'Vui lòng nhập số lượng!' }]}
+                >
+                    <InputNumber min={0} style={{ width: '100%' }} placeholder="Nhập số lượng..." />
                 </Form.Item>
             </Form>
         </Modal>
