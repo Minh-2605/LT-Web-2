@@ -111,4 +111,68 @@ public class UserController {
         }
         return new ResponseEntity<User>(HttpStatus.NOT_FOUND);
     }
+
+    // --- QUÊN MẬT KHẨU & OTP ---
+    
+    @Autowired
+    private com.rainbowforest.userservice.service.EmailService emailService;
+
+    // Lưu trữ OTP tạm thời: Key = email, Value = OTP:Time
+    private final java.util.concurrent.ConcurrentHashMap<String, String> otpStorage = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestParam("email") String email) {
+        User user = userService.getUserByEmail(email);
+        if (user == null) {
+            return new ResponseEntity<>("Không tìm thấy tài khoản với email này", HttpStatus.NOT_FOUND);
+        }
+
+        // Tạo mã OTP 6 số
+        String otp = String.format("%06d", new java.util.Random().nextInt(999999));
+        // Thời gian hết hạn (5 phút = 300000ms)
+        long expiryTime = System.currentTimeMillis() + 300000;
+        otpStorage.put(email, otp + ":" + expiryTime);
+
+        try {
+            emailService.sendOtpEmail(email, otp);
+            return new ResponseEntity<>("OTP đã được gửi đến email", HttpStatus.OK);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>("Lỗi hệ thống khi gửi email", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestParam("email") String email, 
+                                                @RequestParam("otp") String otp, 
+                                                @RequestParam("newPassword") String newPassword) {
+        String storedData = otpStorage.get(email);
+        if (storedData == null) {
+            return new ResponseEntity<>("Không có yêu cầu đổi mật khẩu cho email này", HttpStatus.BAD_REQUEST);
+        }
+
+        String[] parts = storedData.split(":");
+        String storedOtp = parts[0];
+        long expiryTime = Long.parseLong(parts[1]);
+
+        if (System.currentTimeMillis() > expiryTime) {
+            otpStorage.remove(email);
+            return new ResponseEntity<>("Mã OTP đã hết hạn", HttpStatus.BAD_REQUEST);
+        }
+
+        if (!storedOtp.equals(otp)) {
+            return new ResponseEntity<>("Mã OTP không hợp lệ", HttpStatus.BAD_REQUEST);
+        }
+
+        // Đổi mật khẩu
+        User user = userService.getUserByEmail(email);
+        if (user != null) {
+            user.setUserPassword(newPassword);
+            userService.saveUser(user);
+            otpStorage.remove(email); // Xóa OTP sau khi dùng thành công
+            return new ResponseEntity<>("Đổi mật khẩu thành công", HttpStatus.OK);
+        }
+
+        return new ResponseEntity<>("Lỗi không tìm thấy người dùng", HttpStatus.NOT_FOUND);
+    }
 }

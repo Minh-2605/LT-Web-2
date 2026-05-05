@@ -44,4 +44,15 @@ public class User {
     public void setOrders(List<Order> orders) {
         this.orders = orders;
     }
+
+    @Transient
+    private UserDetails userDetails;
+
+    public UserDetails getUserDetails() {
+        return userDetails;
+    }
+
+    public void setUserDetails(UserDetails userDetails) {
+        this.userDetails = userDetails;
+    }
 }

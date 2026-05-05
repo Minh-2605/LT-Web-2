@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Typography, message, Spin, Popconfirm } from 'antd';
-import { DeleteOutlined, CreditCardOutlined } from '@ant-design/icons';
+import { Button, Typography, message, Spin, Popconfirm, Empty, Tag } from 'antd';
+import { DeleteOutlined, CreditCardOutlined, ShoppingOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate, Link } from 'react-router-dom';
 import { cartApi } from '../../api/cartApi';
 
@@ -10,18 +10,17 @@ const Cart = () => {
     const navigate = useNavigate();
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedIds, setSelectedIds] = useState([]);
 
     const fetchCart = async () => {
         setLoading(true);
         try {
             const res = await cartApi.getCart();
-            // CartController trả về List<Object> (chứa thông tin Item).
-            // Ta cần kiểm tra xem cấu trúc dữ liệu trả về như thế nào.
-            // Thông thường là mảng các object.
-            setCartItems(Array.isArray(res.data) ? res.data : res);
+            const items = Array.isArray(res.data) ? res.data : res;
+            setCartItems(items);
+            setSelectedIds(items.map(i => i.id || i.productId));
         } catch (error) {
-            // Lỗi 404 là giỏ hàng trống, không cần báo lỗi đỏ lòm
-            if (error.response && error.response.status === 404) {
+            if (error.response?.status === 404) {
                 setCartItems([]);
             } else {
                 message.error("Không thể tải giỏ hàng!");
@@ -31,142 +30,197 @@ const Cart = () => {
         }
     };
 
-    useEffect(() => {
-        fetchCart();
-    }, []);
+    useEffect(() => { fetchCart(); }, []);
 
     const handleRemoveItem = async (productId) => {
         try {
             await cartApi.removeItem(productId);
             message.success("Đã xóa sản phẩm khỏi giỏ hàng!");
-            fetchCart(); // Tải lại giỏ hàng
+            fetchCart();
             window.dispatchEvent(new Event('cartUpdated'));
-        } catch (error) {
+        } catch {
             message.error("Lỗi khi xóa sản phẩm!");
         }
     };
 
-    const columns = [
-        { 
-            title: 'Hình ảnh', 
-            dataIndex: 'product', 
-            key: 'image',
-            render: (prod) => (
-                prod?.image ? 
-                    <img src={prod.image} alt="product" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 4 }} /> 
-                    : 'Chưa có ảnh'
-            )
-        },
-        { 
-            title: 'Sản phẩm', 
-            dataIndex: 'product', 
-            key: 'product',
-            render: (prod) => (
-                <Link to={`/product/${prod?.id}`}>
-                    <Text strong style={{ cursor: 'pointer', color: '#1890ff' }}>{prod?.productName || 'Sản phẩm'}</Text>
-                </Link>
-            )
-        },
-        { 
-            title: 'Đơn giá', 
-            dataIndex: 'price', 
-            key: 'price',
-            render: (val) => `${val?.toLocaleString()}đ`
-        },
-        { 
-            title: 'Số lượng', 
-            dataIndex: 'quantity', 
-            key: 'quantity' 
-        },
-        { 
-            title: 'Thành tiền', 
-            dataIndex: 'subTotal', 
-            key: 'subTotal',
-            render: (val) => <Text type="danger" strong>{val?.toLocaleString()}đ</Text>
-        },
-        {
-            title: 'Thao tác',
-            key: 'action',
-            render: (_, record) => (
-                <Popconfirm
-                    title="Xóa khỏi giỏ hàng?"
-                    onConfirm={() => handleRemoveItem(record.product?.id || record.productId)}
-                    okText="Xóa"
-                    cancelText="Hủy"
-                >
-                    <Button danger icon={<DeleteOutlined />} type="text">Xóa</Button>
-                </Popconfirm>
-            )
-        }
-    ];
-
-    const [selectedRowKeys, setSelectedRowKeys] = useState([]);
-
-    const onSelectChange = (newSelectedRowKeys) => {
-        setSelectedRowKeys(newSelectedRowKeys);
+    const toggleSelect = (itemId) => {
+        setSelectedIds(prev =>
+            prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+        );
     };
 
-    const rowSelection = {
-        selectedRowKeys,
-        onChange: onSelectChange,
-    };
-
-    const selectedItems = cartItems.filter(item => 
-        selectedRowKeys.includes(item.id || item.productId)
-    );
-
+    const selectedItems = cartItems.filter(item => selectedIds.includes(item.id || item.productId));
     const totalPrice = selectedItems.reduce((sum, item) => sum + (item.subTotal || 0), 0);
 
+    if (loading) {
+        return <div style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" tip="Đang tải giỏ hàng..." /></div>;
+    }
+
     return (
-        <div style={{ background: '#fff', padding: 48, borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-            <Title level={2} style={{ marginBottom: 32, fontWeight: 800 }}>Giỏ hàng của bạn</Title>
-            
-            <div style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
-                <div style={{ flex: '1 1 60%' }}>
-                    <Table 
-                        rowSelection={rowSelection}
-                        dataSource={cartItems} 
-                        columns={columns} 
-                        rowKey={(record) => record.id || record.productId}
-                        loading={loading}
-                        pagination={false}
-                        locale={{ emptyText: 'Giỏ hàng đang trống' }}
-                    />
+        <div>
+            {/* Page Header */}
+            <div style={{ marginBottom: 28 }}>
+                <Title level={2} style={{ margin: 0, fontWeight: 900, color: '#1a1a2e' }}>
+                    🛒 Giỏ Hàng
+                </Title>
+                <Text style={{ color: '#6b7280' }}>{cartItems.length} sản phẩm trong giỏ hàng</Text>
+            </div>
+
+            {cartItems.length === 0 ? (
+                <div style={{
+                    textAlign: 'center', padding: '80px 40px',
+                    background: '#fff', borderRadius: 20,
+                    border: '2px dashed #d0e4ff'
+                }}>
+                    <div style={{ fontSize: 64, marginBottom: 16 }}>🛍️</div>
+                    <Title level={4} style={{ color: '#6b7280', fontWeight: 600 }}>Giỏ hàng của bạn đang trống</Title>
+                    <Text style={{ color: '#9ca3af', display: 'block', marginBottom: 24 }}>Hãy khám phá và thêm sản phẩm vào giỏ hàng nhé!</Text>
+                    <Button
+                        type="primary" size="large" icon={<ShoppingOutlined />}
+                        onClick={() => navigate('/')}
+                        style={{ height: 46, borderRadius: 10, fontWeight: 600 }}
+                    >
+                        Tiếp tục mua sắm
+                    </Button>
                 </div>
-
-                {cartItems.length > 0 && (
-                    <div style={{ flex: '1 1 30%', minWidth: 300 }}>
-                        <div style={{ position: 'sticky', top: 120, padding: 32, background: '#fafafa', borderRadius: 16, border: '1px solid #f0f0f0', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
-                            <Title level={4} style={{ borderBottom: '1px solid #e8e8e8', paddingBottom: 16, marginBottom: 24 }}>Tóm tắt đơn hàng</Title>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <Text type="secondary" style={{ fontSize: 16 }}>Đã chọn ({selectedItems.length} sản phẩm)</Text>
-                                <Text strong style={{ fontSize: 16 }}>{totalPrice.toLocaleString()} ₫</Text>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-                                <Text type="secondary" style={{ fontSize: 16 }}>Phí giao hàng</Text>
-                                <Text strong style={{ fontSize: 16, color: '#52c41a' }}>Miễn phí</Text>
-                            </div>
-
-                            <div style={{ borderTop: '1px solid #e8e8e8', paddingTop: 24, marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text strong style={{ fontSize: 18 }}>Tổng cộng:</Text>
-                                <Text type="danger" strong style={{ fontSize: 28, lineHeight: 1 }}>{totalPrice.toLocaleString()} ₫</Text>
+            ) : (
+                <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+                    {/* Danh sách sản phẩm */}
+                    <div style={{ flex: '1 1 0' }}>
+                        <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e8f0fe', overflow: 'hidden' }}>
+                            {/* Header */}
+                            <div style={{
+                                display: 'grid', gridTemplateColumns: '40px 80px 1fr 100px 80px 120px 80px',
+                                gap: 12, padding: '14px 20px',
+                                background: 'linear-gradient(135deg, #f0f7ff, #e8f0fe)',
+                                borderBottom: '1px solid #d0e4ff'
+                            }}>
+                                {['', 'Ảnh', 'Sản phẩm', 'Đơn giá', 'SL', 'Thành tiền', 'Thao tác'].map((h, i) => (
+                                    <Text key={i} strong style={{ fontSize: 12, color: '#1677ff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</Text>
+                                ))}
                             </div>
 
-                            <Button 
-                                type="primary" 
-                                size="large" 
-                                icon={<CreditCardOutlined style={{ fontSize: 20 }} />}
-                                style={{ width: '100%', height: 56, fontSize: 18, fontWeight: 600, borderRadius: 8, background: 'linear-gradient(90deg, #1890ff 0%, #0050b3 100%)', border: 'none' }}
-                                disabled={selectedRowKeys.length === 0}
-                                onClick={() => navigate('/checkout', { state: { selectedItems } })}
-                            >
-                                Mua Hàng
+                            {/* Items */}
+                            {cartItems.map((item, idx) => {
+                                const itemId = item.id || item.productId;
+                                const isSelected = selectedIds.includes(itemId);
+                                return (
+                                    <div key={itemId} style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: '40px 80px 1fr 100px 80px 120px 80px',
+                                        gap: 12, padding: '16px 20px',
+                                        alignItems: 'center',
+                                        borderBottom: idx < cartItems.length - 1 ? '1px solid #f0f5ff' : 'none',
+                                        background: isSelected ? '#fafcff' : '#fff',
+                                        transition: 'background 0.2s'
+                                    }}>
+                                        {/* Checkbox */}
+                                        <div
+                                            onClick={() => toggleSelect(itemId)}
+                                            style={{
+                                                width: 20, height: 20, borderRadius: 6, cursor: 'pointer',
+                                                background: isSelected ? '#1677ff' : '#fff',
+                                                border: `2px solid ${isSelected ? '#1677ff' : '#d9d9d9'}`,
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {isSelected && <span style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>✓</span>}
+                                        </div>
+
+                                        {/* Ảnh */}
+                                        <div style={{ width: 64, height: 64, borderRadius: 10, overflow: 'hidden', border: '1px solid #e8f0fe' }}>
+                                            {item.product?.image ? (
+                                                <img src={item.product.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <div style={{ width: '100%', height: '100%', background: '#f0f7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>🛍️</div>
+                                            )}
+                                        </div>
+
+                                        {/* Tên */}
+                                        <Link to={`/product/${item.product?.id}`} style={{ color: '#1a1a2e', textDecoration: 'none' }}>
+                                            <Text strong style={{ fontSize: 14, display: 'block', lineHeight: 1.4 }}>
+                                                {item.product?.productName || 'Sản phẩm'}
+                                            </Text>
+                                        </Link>
+
+                                        {/* Đơn giá */}
+                                        <Text style={{ fontSize: 14, color: '#6b7280' }}>{item.price?.toLocaleString()}đ</Text>
+
+                                        {/* SL */}
+                                        <div style={{ textAlign: 'center', background: '#f0f7ff', borderRadius: 8, padding: '4px 0', fontWeight: 700, color: '#1677ff' }}>
+                                            {item.quantity}
+                                        </div>
+
+                                        {/* Thành tiền */}
+                                        <Text strong style={{ color: '#f5222d', fontSize: 15 }}>{item.subTotal?.toLocaleString()}đ</Text>
+
+                                        {/* Xóa */}
+                                        <Popconfirm
+                                            title="Xóa khỏi giỏ hàng?"
+                                            onConfirm={() => handleRemoveItem(item.product?.id || item.productId)}
+                                            okText="Xóa" cancelText="Hủy"
+                                        >
+                                            <Button danger type="text" icon={<DeleteOutlined />} size="small" style={{ borderRadius: 8 }} />
+                                        </Popconfirm>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Button type="link" icon={<ShoppingOutlined />} onClick={() => navigate('/')}
+                                style={{ color: '#1677ff', fontWeight: 600, paddingLeft: 0 }}>
+                                Tiếp tục mua sắm
                             </Button>
                         </div>
                     </div>
-                )}
-            </div>
+
+                    {/* Tóm tắt đơn hàng */}
+                    <div style={{ width: 320, flexShrink: 0 }}>
+                        <div style={{
+                            position: 'sticky', top: 16,
+                            background: '#fff', borderRadius: 16,
+                            border: '1px solid #e8f0fe',
+                            overflow: 'hidden',
+                            boxShadow: '0 4px 20px rgba(22,119,255,0.08)'
+                        }}>
+                            <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, #1677ff, #0050b3)' }}>
+                                <Title level={5} style={{ color: '#fff', margin: 0, fontWeight: 700 }}>Tóm tắt đơn hàng</Title>
+                            </div>
+                            <div style={{ padding: 20 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                    <Text style={{ color: '#6b7280' }}>Đã chọn ({selectedItems.length})</Text>
+                                    <Text strong>{totalPrice.toLocaleString()} ₫</Text>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+                                    <Text style={{ color: '#6b7280' }}>Phí vận chuyển</Text>
+                                    <Tag color="green" style={{ fontWeight: 700 }}>Miễn phí</Tag>
+                                </div>
+
+                                <div style={{ borderTop: '2px dashed #e8f0fe', paddingTop: 16, marginBottom: 20 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                        <Text strong style={{ fontSize: 16 }}>Tổng cộng:</Text>
+                                        <Text style={{ fontSize: 28, fontWeight: 900, color: '#f5222d', fontFamily: 'Inter' }}>
+                                            {totalPrice.toLocaleString()} ₫
+                                        </Text>
+                                    </div>
+                                </div>
+
+                                <Button
+                                    type="primary" size="large" block
+                                    icon={<CreditCardOutlined />}
+                                    disabled={selectedItems.length === 0}
+                                    onClick={() => navigate('/checkout', { state: { selectedItems } })}
+                                    style={{ height: 52, borderRadius: 12, fontWeight: 700, fontSize: 16 }}
+                                >
+                                    Thanh Toán <ArrowRightOutlined />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

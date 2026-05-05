@@ -14,4 +14,8 @@ export const userApi = {
 
     // API Cập nhật thông tin chi tiết
     updateDetails: (id, details) => axiosClient.put(`/users/${id}/details`, details),
+
+    // API Quên mật khẩu
+    forgotPassword: (email) => axiosClient.post(`/forgot-password`, null, { params: { email } }),
+    resetPassword: (email, otp, newPassword) => axiosClient.post(`/reset-password`, null, { params: { email, otp, newPassword } }),
 };

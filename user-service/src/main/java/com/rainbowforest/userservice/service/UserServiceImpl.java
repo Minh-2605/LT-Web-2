@@ -35,6 +35,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    @Override
     public User saveUser(User user) {
         user.setActive(1);
         UserRole role = userRoleRepository.findUserRoleByRoleName("ROLE_USER");

@@ -1,8 +1,11 @@
-import { Table, Button, Space, message, Popconfirm, Input, Modal, Form, Typography } from 'antd';
+import { Table, Button, Space, message, Popconfirm, Modal, Form, Input, Typography, Tag } from 'antd';
 import { useEffect, useState, useCallback } from 'react';
+import { PlusOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
+
+const CATEGORY_ICONS = ['📱', '💻', '👕', '📚', '🏠', '⚽', '🎮', '💄', '🍔', '🎵'];
 
 const CategoryList = () => {
     const [categories, setCategories] = useState([]);
@@ -11,7 +14,6 @@ const CategoryList = () => {
     const [editingCategory, setEditingCategory] = useState(null);
     const [form] = Form.useForm();
 
-    // 1. Lấy danh sách danh mục
     const fetchCategories = useCallback(async () => {
         setLoading(true);
         try {
@@ -24,11 +26,8 @@ const CategoryList = () => {
         }
     }, []);
 
-    useEffect(() => {
-        fetchCategories();
-    }, [fetchCategories]);
+    useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
-    // 2. Xử lý Lưu (Thêm/Sửa)
     const handleSave = async (values) => {
         try {
             if (editingCategory) {
@@ -46,7 +45,6 @@ const CategoryList = () => {
         }
     };
 
-    // 3. Xử lý Xóa
     const handleDelete = async (id) => {
         try {
             await axios.delete(`http://localhost:8367/categories/${id}`);
@@ -58,20 +56,37 @@ const CategoryList = () => {
     };
 
     const columns = [
-        { title: 'ID', dataIndex: 'id', key: 'id', width: 80 },
-        { title: 'Tên danh mục', dataIndex: 'categoryName', key: 'categoryName' },
         {
-            title: 'Thao tác',
-            key: 'action',
+            title: 'ID', dataIndex: 'id', key: 'id', width: 80,
+            render: (id) => <Text strong style={{ color: '#1677ff' }}>{id}</Text>
+        },
+        {
+            title: 'Danh mục', dataIndex: 'categoryName', key: 'categoryName',
+            render: (name, _, index) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                        width: 40, height: 40,
+                        background: 'linear-gradient(135deg, #e6f4ff, #bae0ff)',
+                        borderRadius: 10, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: 18, border: '1px solid #91caff'
+                    }}>
+                        {CATEGORY_ICONS[index % CATEGORY_ICONS.length]}
+                    </div>
+                    <Text strong style={{ fontSize: 15, color: '#1a1a2e' }}>{name}</Text>
+                </div>
+            )
+        },
+        {
+            title: 'Thao tác', key: 'action', width: 160,
             render: (_, record) => (
                 <Space>
-                    <Button type="link" onClick={() => {
-                        setEditingCategory(record);
-                        form.setFieldsValue(record);
-                        setIsModalOpen(true);
-                    }}>Sửa</Button>
-                    <Popconfirm title="Xác nhận xóa?" onConfirm={() => handleDelete(record.id)}>
-                        <Button type="link" danger>Xóa</Button>
+                    <Button type="primary" size="small" icon={<EditOutlined />}
+                        style={{ borderRadius: 8, height: 32 }}
+                        onClick={() => { setEditingCategory(record); form.setFieldsValue(record); setIsModalOpen(true); }}>
+                        Sửa
+                    </Button>
+                    <Popconfirm title="Xác nhận xóa danh mục?" onConfirm={() => handleDelete(record.id)} okText="Xóa" cancelText="Hủy" okButtonProps={{ danger: true }}>
+                        <Button danger size="small" icon={<DeleteOutlined />} style={{ borderRadius: 8, height: 32 }}>Xóa</Button>
                     </Popconfirm>
                 </Space>
             ),
@@ -80,39 +95,42 @@ const CategoryList = () => {
 
     return (
         <div>
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Title level={3} style={{ margin: 0 }}>Quản lý Danh mục</Title>
-                <Button type="primary" onClick={() => {
-                    setEditingCategory(null);
-                    form.resetFields();
-                    setIsModalOpen(true);
-                }}>
-                    Thêm danh mục mới
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <div>
+                    <Title level={3} style={{ margin: 0, fontWeight: 800 }}>
+                        <AppstoreOutlined style={{ color: '#1677ff', marginRight: 10 }} />Quản lý Danh mục
+                    </Title>
+                    <Text style={{ color: '#6b7280' }}>{categories.length} danh mục</Text>
+                </div>
+                <Button type="primary" icon={<PlusOutlined />}
+                    onClick={() => { setEditingCategory(null); form.resetFields(); setIsModalOpen(true); }}
+                    style={{ height: 40, borderRadius: 10, fontWeight: 600 }}>
+                    Thêm danh mục
                 </Button>
             </div>
 
-            <Table
-                dataSource={categories}
-                columns={columns}
-                loading={loading}
-                rowKey="id"
-            />
+            <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e8f0fe', overflow: 'hidden', boxShadow: '0 2px 12px rgba(22,119,255,0.05)' }}>
+                <Table dataSource={categories} columns={columns} loading={loading} rowKey="id" pagination={{ pageSize: 10 }} />
+            </div>
 
             <Modal
-                title={editingCategory ? "Chỉnh sửa danh mục" : "Thêm danh mục mới"}
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <AppstoreOutlined style={{ color: '#1677ff' }} />
+                        <span style={{ fontWeight: 700 }}>{editingCategory ? 'Chỉnh sửa danh mục' : 'Thêm danh mục mới'}</span>
+                    </div>
+                }
                 open={isModalOpen}
                 onOk={() => form.submit()}
                 onCancel={() => setIsModalOpen(false)}
-                okText="Lưu"
-                cancelText="Hủy"
+                okText="Lưu" cancelText="Hủy"
+                centered
+                okButtonProps={{ style: { borderRadius: 8, fontWeight: 600 } }}
             >
-                <Form form={form} onFinish={handleSave} layout="vertical">
-                    <Form.Item
-                        name="categoryName"
-                        label="Tên danh mục"
-                        rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}
-                    >
-                        <Input placeholder="Ví dụ: Điện thoại, Sách, Quần áo..." />
+                <Form form={form} onFinish={handleSave} layout="vertical" style={{ marginTop: 16 }}>
+                    <Form.Item name="categoryName" label={<Text strong>Tên danh mục</Text>}
+                        rules={[{ required: true, message: 'Vui lòng nhập tên danh mục!' }]}>
+                        <Input placeholder="VD: Điện thoại, Sách, Quần áo..." size="large" style={{ borderRadius: 10 }} />
                     </Form.Item>
                 </Form>
             </Modal>

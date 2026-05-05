@@ -38,6 +38,9 @@ public class OrderController {
     @Autowired
     private HeaderGenerator headerGenerator;
 
+    @Autowired
+    private com.rainbowforest.orderservice.service.EmailService emailService;
+
     @PostMapping(value = "/order/{userId}")
     public ResponseEntity<Order> saveOrder(
             @PathVariable("userId") Long userId,
@@ -66,6 +69,9 @@ public class OrderController {
                         }
                     }
                 }
+
+                // GỬI EMAIL XÁC NHẬN ĐƠN HÀNG BẤT ĐỒNG BỘ
+                emailService.sendOrderConfirmationEmail(savedOrder, user);
 
                 return new ResponseEntity<Order>(
                         savedOrder,
